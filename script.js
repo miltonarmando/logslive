@@ -1,7 +1,7 @@
 class LogMonitor {
     constructor() {
         this.lastSize = 0;
-        this.pollInterval = 1000; // 1 second
+        this.pollInterval = 3000; // Increased to 3 seconds for slow SMB
         this.pollTimer = null;
         this.isPaused = false;
         this.autoScroll = true;
@@ -9,6 +9,7 @@ class LogMonitor {
         this.filteredLines = 0;
         this.highlights = [];
         this.currentFilter = '';
+        this.requestTimeout = 30000; // 30 second timeout for AJAX requests
         
         this.initializeElements();
         this.attachEventListeners();
@@ -119,23 +120,61 @@ class LogMonitor {
     }
     
     async poll() {
+        const startTime = Date.now();
+        
         try {
             const params = new URLSearchParams({
                 lastSize: this.lastSize,
-                maxLines: 1000
+                maxLines: 1000 // Reduced for better performance with slow SMB
             });
             
-            const response = await fetch(`log_reader.php?${params}`);
+            // Add timeout to fetch request
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), this.requestTimeout);
+            
+            const response = await fetch(`log_reader.php?${params}`, {
+                signal: controller.signal
+            });
+            
+            clearTimeout(timeoutId);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
             const data = await response.json();
+            
+            // Check response time and warn if slow
+            const responseTime = Date.now() - startTime;
+            if (responseTime > 5000) { // 5 seconds
+                console.warn(`Slow SMB response: ${responseTime}ms`);
+                this.updateStatus('connected', `Connected (slow: ${Math.round(responseTime/1000)}s)`);
+            } else {
+                this.updateStatus('connected', 'Connected');
+            }
             
             if (data.success) {
                 this.handleLogData(data);
+                
+                // Adjust polling interval based on response time
+                if (responseTime > 10000) { // Very slow (>10s)
+                    this.pollInterval = 10000; // Poll every 10 seconds
+                } else if (responseTime > 5000) { // Slow (>5s)
+                    this.pollInterval = 5000; // Poll every 5 seconds
+                } else {
+                    this.pollInterval = 3000; // Normal 3 second polling
+                }
+                
                 this.updateStatus('connected', 'Connected');
             } else {
                 this.handleError(data.error || 'Unknown error');
             }
         } catch (error) {
-            this.handleError(`Network error: ${error.message}`);
+            if (error.name === 'AbortError') {
+                this.handleError('Request timeout - SMB share may be slow or disconnected');
+            } else {
+                this.handleError(`Network error: ${error.message}`);
+            }
         }
     }
     

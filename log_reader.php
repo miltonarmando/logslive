@@ -33,12 +33,24 @@ function findMostRecentLogFile($logDirectory) {
 
 // Get parameters
 $lastSize = isset($_GET['lastSize']) ? intval($_GET['lastSize']) : 0;
-$maxLines = isset($_GET['maxLines']) ? intval($_GET['maxLines']) : 100000;
+$maxLines = isset($_GET['maxLines']) ? intval($_GET['maxLines']) : 1000; // Reduced for better performance
+
+// Set timeout for slow SMB operations
+set_time_limit(30); // 30 second timeout
+ini_set('default_socket_timeout', 10); // 10 second socket timeout
 
 try {
-    // Check if directory exists first
+    // Quick timeout test for SMB accessibility
+    $startTime = microtime(true);
+    
+    // Check if directory exists first (this might be slow on SMB)
     if (!is_dir($logDirectory)) {
         throw new Exception("Log directory not accessible: $logDirectory. Please ensure the SMB share is mounted.");
+    }
+    
+    $dirCheckTime = microtime(true) - $startTime;
+    if ($dirCheckTime > 5) {
+        error_log("Warning: SMB directory check took {$dirCheckTime}s - network may be slow");
     }
     
     if (!is_readable($logDirectory)) {
@@ -73,21 +85,37 @@ try {
         }
     }
     
+    // Check file access with timeout
     if (!is_readable($logFile)) {
         throw new Exception("Log file is not readable: $logFile");
     }
     
-    $currentSize = filesize($logFile);
+    // Quick file size check
+    $currentSize = @filesize($logFile);
+    if ($currentSize === false) {
+        throw new Exception("Cannot get file size for: $logFile (SMB may be slow or disconnected)");
+    }
+    
     $newLines = [];
     $hasNewData = false;
     
     // Check if file has grown or if this is the first request
     if ($currentSize > $lastSize || $lastSize == 0) {
-        $handle = fopen($logFile, 'r');
+        // Use context options for better SMB performance
+        $context = stream_context_create([
+            'file' => [
+                'timeout' => 10 // 10 second timeout for file operations
+            ]
+        ]);
+        
+        $handle = @fopen($logFile, 'r', false, $context);
         
         if ($handle === false) {
-            throw new Exception("Cannot open log file: $logFile");
+            throw new Exception("Cannot open log file: $logFile (SMB timeout or access denied)");
         }
+        
+        // Set stream timeout
+        stream_set_timeout($handle, 10);
         
         if ($lastSize == 0) {
             // First request - read last N lines efficiently
