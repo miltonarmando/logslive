@@ -3,6 +3,8 @@
 ## Project Overview
 A PHP web application that monitors ACTSentinel log files in real-time, providing filtering and highlighting capabilities.
 
+**Repository**: https://github.com/miltonarmando/logslive.git
+
 ## Features
 - Real-time log file monitoring (simulates `tail -f`)
 - Text filtering (case-insensitive)

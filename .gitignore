@@ -1,0 +1,22 @@
+# Log files
+*.log
+logs/
+ACTSentinel*.log
+
+# PHP temp files
+*.tmp
+*.temp
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Cache files
+cache/
+tmp/
