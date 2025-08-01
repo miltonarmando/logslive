@@ -22,24 +22,24 @@ A lightweight PHP web application that monitors ACTSentinel log files in real-ti
 
 1. Clone or download the files to your web server directory
 2. Ensure PHP has read permissions for the log files
-3. Place your ACTSentinel log files in the same directory as the application
+3. Ensure the SMB share `/run/user/1000/gvfs/smb-share:server=10.12.100.19,share=t$/ACT/Logs/ACTSentinel` is mounted and accessible
 
 ## Usage
 
 ### Starting the Application
 
-1. **Using PHP built-in server (for development):**
+1. **Using PHP built-in server:**
    ```bash
-   php -S localhost:8000
+   php -S 0.0.0.0:8000
    ```
-   Then open `http://localhost:8000` in your browser
+   Then open `http://your-server-ip:8000` in your browser
 
 2. **Using Apache/Nginx:**
-   Place files in your web root and access via your web server
+   Configure your web server to serve the application directory
 
 ### Log File Format
 
-The application expects log files with the naming pattern:
+The application reads log files from the SMB share with the naming pattern:
 ```
 ACTSentinelYYYYMMDD.log
 ```
@@ -150,25 +150,14 @@ Then update `log_reader.php` to use `/mnt/act_logs/ACT/Logs/ACTSentinel`
 ## Configuration
 
 ### Log Directory
-To change the log file directory, modify the `$logDirectory` variable in both files:
+The application is configured to read logs from a specific SMB share:
 
-**In `log_reader.php`:**
-```php
-$logDirectory = '/run/user/1000/gvfs/smb-share:server=10.12.100.19,share=t$/ACT/Logs/ACTSentinel';
+**Fixed log directory path:**
+```
+/run/user/1000/gvfs/smb-share:server=10.12.100.19,share=t$/ACT/Logs/ACTSentinel
 ```
 
-**In `simulate_logs.php`:**
-```php
-$logDirectory = '/run/user/1000/gvfs/smb-share:server=10.12.100.19,share=t$/ACT/Logs/ACTSentinel';
-```
-
-Examples:
-- Network share (SMB): `/run/user/1000/gvfs/smb-share:server=10.12.100.19,share=t$/ACT/Logs/ACTSentinel`
-- Relative path: `'logs'` (creates/uses logs folder in application directory)
-- Windows absolute path: `'C:\logs'` or `'D:\application\logs'`
-- Linux/Mac absolute path: `'/var/log/act'` or `'/home/user/logs'`
-
-**Note**: For network shares, ensure the web server has proper read permissions to access the remote directory.
+**Important**: Ensure this SMB share is properly mounted and accessible before running the application.
 
 ### Polling Interval
 To change the update frequency, modify the `pollInterval` value in `script.js`:

@@ -4,25 +4,24 @@ header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET');
 header('Access-Control-Allow-Headers: Content-Type');
 
-// Configure log directory - Linux server configuration
+// Configure log directory - SMB share path only
 $logDirectory = '/run/user/1000/gvfs/smb-share:server=10.12.100.19,share=t$/ACT/Logs/ACTSentinel';
-
-// For development environment, fall back to local directory if the network path doesn't exist
-if (!is_dir($logDirectory)) {
-    $logDirectory = 'logs';  // Development fallback
-}
 
 // Function to get the current log file name based on today's date
 function getCurrentLogFile($logDirectory) {
     $today = date('Ymd');
     $filename = $logDirectory . DIRECTORY_SEPARATOR . "ACTSentinel{$today}.log";
+    error_log("Log Monitor Debug - Date format: " . $today);
+    error_log("Log Monitor Debug - Expected filename: " . $filename);
     return $filename;
 }
 
 // Function to find the most recent log file if today's doesn't exist
 function findMostRecentLogFile($logDirectory) {
     $pattern = $logDirectory . DIRECTORY_SEPARATOR . 'ACTSentinel*.log';
+    error_log("Log Monitor Debug - Glob pattern: " . $pattern);
     $files = glob($pattern);
+    error_log("Log Monitor Debug - Files found by glob: " . implode(", ", $files ?: []));
     
     if (empty($files)) {
         return null;
@@ -41,30 +40,34 @@ $lastSize = isset($_GET['lastSize']) ? intval($_GET['lastSize']) : 0;
 $maxLines = isset($_GET['maxLines']) ? intval($_GET['maxLines']) : 1000;
 
 try {
-    // Add debugging information
-    $debugInfo = [
-        'php_os' => PHP_OS,
-        'working_directory' => getcwd(),
-        'log_directory' => $logDirectory,
-        'directory_exists' => is_dir($logDirectory),
-        'directory_readable' => is_readable($logDirectory),
-        'files_in_directory' => is_dir($logDirectory) ? scandir($logDirectory) : 'Directory not accessible'
-    ];
+    // Debug: Log directory and file information
+    error_log("Log Monitor Debug - Directory: " . $logDirectory);
+    error_log("Log Monitor Debug - Directory exists: " . (is_dir($logDirectory) ? "YES" : "NO"));
+    error_log("Log Monitor Debug - Directory readable: " . (is_readable($logDirectory) ? "YES" : "NO"));
     
     // Try to get today's log file first
     $logFile = getCurrentLogFile($logDirectory);
+    error_log("Log Monitor Debug - Looking for today's file: " . $logFile);
+    error_log("Log Monitor Debug - Today's file exists: " . (file_exists($logFile) ? "YES" : "NO"));
     
     if (!file_exists($logFile)) {
         // If today's file doesn't exist, find the most recent one
+        error_log("Log Monitor Debug - Searching for most recent file...");
         $logFile = findMostRecentLogFile($logDirectory);
         
-        if (!$logFile) {
-            // Include debug info in error message
-            $errorMsg = "No log files found matching pattern ACTSentinel*.log in directory: $logDirectory\n";
-            $errorMsg .= "Debug info: " . json_encode($debugInfo);
-            throw new Exception($errorMsg);
+        if ($logFile) {
+            error_log("Log Monitor Debug - Found recent file: " . $logFile);
+        } else {
+            // List all files in directory for debugging
+            if (is_dir($logDirectory)) {
+                $allFiles = scandir($logDirectory);
+                error_log("Log Monitor Debug - All files in directory: " . implode(", ", $allFiles));
+            }
+            throw new Exception("No log files found matching pattern ACTSentinel*.log in directory: $logDirectory");
         }
     }
+    
+    error_log("Log Monitor Debug - Final log file selected: " . $logFile);
     
     if (!is_readable($logFile)) {
         throw new Exception("Log file is not readable: $logFile");

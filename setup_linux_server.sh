@@ -62,6 +62,11 @@ else
 fi
 
 echo
+echo "Setting up test environment..."
+echo "Creating test log file..."
+php create_test_log.php
+
+echo
 echo "Web server setup..."
 echo "To start the development server:"
 echo "  cd /path/to/logslive"
@@ -69,6 +74,13 @@ echo "  php -S 0.0.0.0:8000"
 echo
 echo "For production, configure Apache/Nginx to serve the application"
 echo "Make sure the web server user (www-data) has access to the SMB share"
+
+echo
+echo "Testing the application..."
+echo "1. Start the web server"
+echo "2. Open http://your-server-ip:8000 in a browser"
+echo "3. Run 'php simulate_logs.php' to add real-time log entries"
+echo "4. Check http://your-server-ip:8000/network_test.php for diagnostics"
 
 echo
 echo "Configuration completed!"

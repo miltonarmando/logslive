@@ -2,19 +2,9 @@
 // This script simulates new log entries being added to the log file
 // Run this in a separate terminal to see real-time updates
 
-// Configure log directory (Linux server path)
+// Configure log directory - SMB share path only
 $logDirectory = '/run/user/1000/gvfs/smb-share:server=10.12.100.19,share=t$/ACT/Logs/ACTSentinel';
-
-// For development on Windows, fall back to local logs directory
-if (!is_dir($logDirectory)) {
-    $logDirectory = 'logs';  // Development fallback
-}
 $logFile = $logDirectory . DIRECTORY_SEPARATOR . 'ACTSentinel' . date('Ymd') . '.log';
-
-// Create log directory if it doesn't exist
-if (!is_dir($logDirectory)) {
-    mkdir($logDirectory, 0755, true);
-}
 
 $sampleMessages = [
     'INFO: User session started',
