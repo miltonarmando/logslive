@@ -4,8 +4,13 @@ header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET');
 header('Access-Control-Allow-Headers: Content-Type');
 
-// Configure log directory (change this to your desired path)
+// Configure log directory - Linux server configuration
 $logDirectory = '/run/user/1000/gvfs/smb-share:server=10.12.100.19,share=t$/ACT/Logs/ACTSentinel';
+
+// For development environment, fall back to local directory if the network path doesn't exist
+if (!is_dir($logDirectory)) {
+    $logDirectory = 'logs';  // Development fallback
+}
 
 // Function to get the current log file name based on today's date
 function getCurrentLogFile($logDirectory) {
@@ -36,6 +41,16 @@ $lastSize = isset($_GET['lastSize']) ? intval($_GET['lastSize']) : 0;
 $maxLines = isset($_GET['maxLines']) ? intval($_GET['maxLines']) : 1000;
 
 try {
+    // Add debugging information
+    $debugInfo = [
+        'php_os' => PHP_OS,
+        'working_directory' => getcwd(),
+        'log_directory' => $logDirectory,
+        'directory_exists' => is_dir($logDirectory),
+        'directory_readable' => is_readable($logDirectory),
+        'files_in_directory' => is_dir($logDirectory) ? scandir($logDirectory) : 'Directory not accessible'
+    ];
+    
     // Try to get today's log file first
     $logFile = getCurrentLogFile($logDirectory);
     
@@ -44,7 +59,10 @@ try {
         $logFile = findMostRecentLogFile($logDirectory);
         
         if (!$logFile) {
-            throw new Exception("No log files found matching pattern ACTSentinel*.log in directory: $logDirectory");
+            // Include debug info in error message
+            $errorMsg = "No log files found matching pattern ACTSentinel*.log in directory: $logDirectory\n";
+            $errorMsg .= "Debug info: " . json_encode($debugInfo);
+            throw new Exception($errorMsg);
         }
     }
     

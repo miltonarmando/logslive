@@ -106,6 +106,47 @@ This script will continuously add new log entries to today's log file, allowing 
 └── ACTSentinelYYYYMMDD.log # Log files
 ```
 
+## Deployment
+
+### Development Environment (Windows)
+For development, the application falls back to the local `logs` directory when the network share is not accessible.
+
+### Production Environment (Linux Server)
+1. **Clone the repository** on your Linux server:
+   ```bash
+   git clone https://github.com/miltonarmando/logslive.git
+   cd logslive
+   ```
+
+2. **Run the setup script**:
+   ```bash
+   chmod +x setup_linux_server.sh
+   ./setup_linux_server.sh
+   ```
+
+3. **Ensure SMB share access**:
+   The application expects the SMB share to be mounted at:
+   ```
+   /run/user/1000/gvfs/smb-share:server=10.12.100.19,share=t$/ACT/Logs/ACTSentinel
+   ```
+
+4. **Start the application**:
+   ```bash
+   # Development server
+   php -S 0.0.0.0:8000
+   
+   # Or configure Apache/Nginx for production
+   ```
+
+### Network Share Setup (Linux)
+If the automatic GVFS mount is not available, manually mount the share:
+```bash
+sudo mkdir -p /mnt/act_logs
+sudo mount -t cifs //10.12.100.19/t$ /mnt/act_logs -o username=your_username
+```
+
+Then update `log_reader.php` to use `/mnt/act_logs/ACT/Logs/ACTSentinel`
+
 ## Configuration
 
 ### Log Directory
@@ -156,6 +197,35 @@ To customize highlight colors, modify the CSS classes `.highlight-1` through `.h
 - Consider implementing rate limiting for the log_reader.php endpoint in production
 
 ## Troubleshooting
+
+## Troubleshooting
+
+### Network Share Access Issues (Windows)
+
+If you're getting "No log files found" errors when trying to access a network share:
+
+1. **Run the network test script:**
+   ```
+   http://localhost:8000/network_test.php
+   ```
+
+2. **Map the network drive (Windows):**
+   - Run `setup_network_drive.bat` as Administrator, or
+   - Manually map the drive:
+     ```cmd
+     net use Z: \\10.12.100.19\t$ /user:DOMAIN\username
+     ```
+
+3. **Update the log directory path:**
+   After mapping the drive, update `log_reader.php`:
+   ```php
+   $logDirectory = 'Z:\\ACT\\Logs\\ACTSentinel';
+   ```
+
+4. **Alternative: Use UNC path directly:**
+   ```php
+   $logDirectory = '\\\\10.12.100.19\\t$\\ACT\\Logs\\ACTSentinel';
+   ```
 
 ### No log file found
 - Ensure the log file exists with the correct naming pattern
