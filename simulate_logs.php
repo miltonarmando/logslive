@@ -3,7 +3,7 @@
 // Run this in a separate terminal to see real-time updates
 
 // Configure log directory (change this to your desired path)
-$logDirectory = 'logs'; // or use absolute path like 'C:\logs' or '/var/log/act'
+$logDirectory = '/run/user/1000/gvfs/smb-share:server=10.12.100.19,share=t$/ACT/Logs/ACTSentinel';
 $logFile = $logDirectory . DIRECTORY_SEPARATOR . 'ACTSentinel' . date('Ymd') . '.log';
 
 // Create log directory if it doesn't exist

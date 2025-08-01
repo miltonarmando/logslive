@@ -5,7 +5,7 @@ header('Access-Control-Allow-Methods: GET');
 header('Access-Control-Allow-Headers: Content-Type');
 
 // Configure log directory (change this to your desired path)
-$logDirectory = 'logs'; // or use absolute path like 'C:\logs' or '/var/log/act'
+$logDirectory = '/run/user/1000/gvfs/smb-share:server=10.12.100.19,share=t$/ACT/Logs/ACTSentinel';
 
 // Function to get the current log file name based on today's date
 function getCurrentLogFile($logDirectory) {

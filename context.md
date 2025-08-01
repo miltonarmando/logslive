@@ -21,6 +21,7 @@ A PHP web application that monitors ACTSentinel log files in real-time, providin
 
 ## Log File Format
 - Filename: `ACTSentinelYYYYMMDD.log`
+- Location: Network share `/run/user/1000/gvfs/smb-share:server=10.12.100.19,share=t$/ACT/Logs/ACTSentinel`
 - The application automatically loads the most recent file based on today's date
 - Only one log file is read at a time
 

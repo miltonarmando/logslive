@@ -113,20 +113,21 @@ To change the log file directory, modify the `$logDirectory` variable in both fi
 
 **In `log_reader.php`:**
 ```php
-$logDirectory = 'logs'; // or use absolute path like 'C:\logs' or '/var/log/act'
+$logDirectory = '/run/user/1000/gvfs/smb-share:server=10.12.100.19,share=t$/ACT/Logs/ACTSentinel';
 ```
 
 **In `simulate_logs.php`:**
 ```php
-$logDirectory = 'logs'; // or use absolute path like 'C:\logs' or '/var/log/act'
+$logDirectory = '/run/user/1000/gvfs/smb-share:server=10.12.100.19,share=t$/ACT/Logs/ACTSentinel';
 ```
 
 Examples:
+- Network share (SMB): `/run/user/1000/gvfs/smb-share:server=10.12.100.19,share=t$/ACT/Logs/ACTSentinel`
 - Relative path: `'logs'` (creates/uses logs folder in application directory)
 - Windows absolute path: `'C:\logs'` or `'D:\application\logs'`
 - Linux/Mac absolute path: `'/var/log/act'` or `'/home/user/logs'`
 
-The application will automatically create the directory if it doesn't exist.
+**Note**: For network shares, ensure the web server has proper read permissions to access the remote directory.
 
 ### Polling Interval
 To change the update frequency, modify the `pollInterval` value in `script.js`:
