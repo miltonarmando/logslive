@@ -11,17 +11,13 @@ $logDirectory = '/run/user/1000/gvfs/smb-share:server=10.12.100.19,share=t$/ACT/
 function getCurrentLogFile($logDirectory) {
     $today = date('Ymd');
     $filename = $logDirectory . DIRECTORY_SEPARATOR . "ACTSentinel{$today}.log";
-    error_log("Log Monitor Debug - Date format: " . $today);
-    error_log("Log Monitor Debug - Expected filename: " . $filename);
     return $filename;
 }
 
 // Function to find the most recent log file if today's doesn't exist
 function findMostRecentLogFile($logDirectory) {
     $pattern = $logDirectory . DIRECTORY_SEPARATOR . 'ACTSentinel*.log';
-    error_log("Log Monitor Debug - Glob pattern: " . $pattern);
     $files = glob($pattern);
-    error_log("Log Monitor Debug - Files found by glob: " . implode(", ", $files ?: []));
     
     if (empty($files)) {
         return null;
@@ -37,37 +33,45 @@ function findMostRecentLogFile($logDirectory) {
 
 // Get parameters
 $lastSize = isset($_GET['lastSize']) ? intval($_GET['lastSize']) : 0;
-$maxLines = isset($_GET['maxLines']) ? intval($_GET['maxLines']) : 1000;
+$maxLines = isset($_GET['maxLines']) ? intval($_GET['maxLines']) : 100000;
 
 try {
-    // Debug: Log directory and file information
-    error_log("Log Monitor Debug - Directory: " . $logDirectory);
-    error_log("Log Monitor Debug - Directory exists: " . (is_dir($logDirectory) ? "YES" : "NO"));
-    error_log("Log Monitor Debug - Directory readable: " . (is_readable($logDirectory) ? "YES" : "NO"));
+    // Check if directory exists first
+    if (!is_dir($logDirectory)) {
+        throw new Exception("Log directory not accessible: $logDirectory. Please ensure the SMB share is mounted.");
+    }
+    
+    if (!is_readable($logDirectory)) {
+        throw new Exception("Log directory not readable: $logDirectory. Please check permissions.");
+    }
     
     // Try to get today's log file first
     $logFile = getCurrentLogFile($logDirectory);
-    error_log("Log Monitor Debug - Looking for today's file: " . $logFile);
-    error_log("Log Monitor Debug - Today's file exists: " . (file_exists($logFile) ? "YES" : "NO"));
     
     if (!file_exists($logFile)) {
         // If today's file doesn't exist, find the most recent one
-        error_log("Log Monitor Debug - Searching for most recent file...");
         $logFile = findMostRecentLogFile($logDirectory);
         
-        if ($logFile) {
-            error_log("Log Monitor Debug - Found recent file: " . $logFile);
-        } else {
-            // List all files in directory for debugging
-            if (is_dir($logDirectory)) {
-                $allFiles = scandir($logDirectory);
-                error_log("Log Monitor Debug - All files in directory: " . implode(", ", $allFiles));
+        if (!$logFile) {
+            // List available files for better error message
+            $allFiles = @scandir($logDirectory);
+            $logFiles = [];
+            if ($allFiles) {
+                $logFiles = array_filter($allFiles, function($file) {
+                    return strpos($file, 'ACTSentinel') !== false && substr($file, -4) === '.log';
+                });
             }
-            throw new Exception("No log files found matching pattern ACTSentinel*.log in directory: $logDirectory");
+            
+            $errorMsg = "No ACTSentinel log files found in directory: $logDirectory";
+            if (!empty($logFiles)) {
+                $errorMsg .= ". Available files: " . implode(', ', $logFiles);
+            } else if ($allFiles) {
+                $errorMsg .= ". Directory contains " . (count($allFiles) - 2) . " files but no ACTSentinel logs.";
+            }
+            
+            throw new Exception($errorMsg);
         }
     }
-    
-    error_log("Log Monitor Debug - Final log file selected: " . $logFile);
     
     if (!is_readable($logFile)) {
         throw new Exception("Log file is not readable: $logFile");
@@ -86,10 +90,37 @@ try {
         }
         
         if ($lastSize == 0) {
-            // First request - read last N lines
+            // First request - read last N lines efficiently
+            fseek($handle, 0, SEEK_END);
+            $fileSize = ftell($handle);
             $lines = [];
-            while (($line = fgets($handle)) !== false) {
-                $lines[] = rtrim($line, "\r\n");
+            $buffer = '';
+            $pos = $fileSize;
+            
+            // Read file backwards to get last N lines efficiently
+            while ($pos > 0 && count($lines) < $maxLines) {
+                $chunkSize = min(4096, $pos);
+                $pos -= $chunkSize;
+                fseek($handle, $pos);
+                $chunk = fread($handle, $chunkSize);
+                $buffer = $chunk . $buffer;
+                
+                // Split into lines
+                $chunkLines = explode("\n", $buffer);
+                $buffer = array_shift($chunkLines); // Keep incomplete line in buffer
+                
+                // Add complete lines to the beginning of array
+                foreach (array_reverse($chunkLines) as $line) {
+                    if (trim($line) !== '') {
+                        array_unshift($lines, rtrim($line, "\r"));
+                        if (count($lines) >= $maxLines) break 2;
+                    }
+                }
+            }
+            
+            // Add any remaining buffer content
+            if ($buffer !== '' && trim($buffer) !== '' && count($lines) < $maxLines) {
+                array_unshift($lines, rtrim($buffer, "\r"));
             }
             
             // Keep only the last maxLines
