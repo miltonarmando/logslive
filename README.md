@@ -18,11 +18,139 @@ A lightweight PHP web application that monitors ACTSentinel log files in real-ti
 - Web server (Apache, Nginx, or PHP built-in server)
 - Modern web browser with JavaScript enabled
 
-## Installation
+## Installation and Setup
 
-1. Clone or download the files to your web server directory
-2. Ensure PHP has read permissions for the log files
-3. Ensure the SMB share `/run/user/1000/gvfs/smb-share:server=10.12.100.19,share=t$/ACT/Logs/ACTSentinel` is mounted and accessible
+### Prerequisites
+
+- PHP 7.0 or higher
+- Web server (Apache, Nginx, or PHP built-in server)
+- Modern web browser with JavaScript enabled
+- Access to Windows SMB share (//10.12.100.19/t$)
+
+### Linux Setup (Recommended)
+
+#### 1. Install Required Packages
+```bash
+# Ubuntu/Debian
+sudo apt update
+sudo apt install php php-cli gvfs-backends gvfs-fuse cifs-utils
+
+# CentOS/RHEL
+sudo yum install php php-cli gvfs-backends gvfs-fuse cifs-utils
+```
+
+#### 2. Test SMB Access
+Before running the application, test SMB connectivity:
+
+```bash
+# Test network connectivity
+ping 10.12.100.19
+
+# Test SMB share access
+php test_smb_access.php
+```
+
+The test script will check all possible SMB mount points and provide detailed diagnostics.
+
+#### 3. Mount SMB Share
+
+**Option A: GVFS (User-space, recommended)**
+```bash
+# Mount the share
+gio mount smb://10.12.100.19/t$
+
+# Verify mount
+ls -la "/run/user/$(id -u)/gvfs/smb-share:server=10.12.100.19,share=t$/"
+```
+
+**Option B: Traditional CIFS Mount (System-wide)**
+```bash
+# Create mount point
+sudo mkdir -p /mnt/act_logs
+
+# Mount the share
+sudo mount -t cifs //10.12.100.19/t$ /mnt/act_logs -o username=YOUR_USERNAME,uid=$(id -u),gid=$(id -g)
+
+# Update log_reader.php to use: /mnt/act_logs/ACT/Logs/ACTSentinel
+```
+
+#### 4. Start the Application
+```bash
+# Navigate to project directory
+cd /path/to/realtime-highlight
+
+# Start PHP development server
+php -S 0.0.0.0:8000
+
+# Open in browser
+http://your-server-ip:8000
+```
+
+### Windows Setup
+
+1. Ensure network drive is mapped to `\\10.12.100.19\t$`
+2. Update `$logDirectory` in `log_reader.php` to use Windows path format
+3. Start PHP server and access via browser
+
+### Troubleshooting
+
+#### SMB Access Issues
+
+1. **Run the diagnostic script:**
+   ```bash
+   php test_smb_access.php
+   ```
+
+2. **Check GVFS status:**
+   ```bash
+   ps aux | grep gvfs
+   ```
+
+3. **Verify network connectivity:**
+   ```bash
+   ping 10.12.100.19
+   telnet 10.12.100.19 445
+   ```
+
+4. **Check mount points:**
+   ```bash
+   # List GVFS mounts
+   gio mount -l
+   
+   # List traditional mounts
+   mount | grep cifs
+   ```
+
+5. **Common GVFS paths to check:**
+   - `/run/user/$(id -u)/gvfs/smb-share:server=10.12.100.19,share=t$/ACT/Logs/ACTSentinel`
+   - `/home/$USER/.gvfs/smb-share:server=10.12.100.19,share=t$/ACT/Logs/ACTSentinel`
+
+#### PHP Configuration
+
+If you encounter permission issues:
+
+1. **Check PHP user:**
+   ```bash
+   php -r "echo get_current_user() . PHP_EOL;"
+   ```
+
+2. **Test file access:**
+   ```bash
+   php -r "var_dump(is_readable('/path/to/smb/share'));"
+   ```
+
+3. **Check PHP error logs:**
+   ```bash
+   tail -f /var/log/php_errors.log
+   ```
+
+#### Performance Issues
+
+For slow SMB connections:
+- The application automatically adjusts timeouts for slow networks
+- File operations use 15-second timeouts
+- Chunk size is optimized for SMB performance
+- Request polling adapts to network speed
 
 ## Usage
 
@@ -97,7 +225,61 @@ This script will continuously add new log entries to today's log file, allowing 
 ## File Structure
 
 ```
-├── index.php           # Main web interface
+├── index.php              # Main web interface
+├── log_reader.php          # Backend PHP script for reading log files
+├── style.css              # CSS styling
+├── script.js              # Frontend JavaScript functionality
+├── test_smb_access.php     # SMB connectivity diagnostic script
+├── setup_linux_server.sh  # Linux server setup script
+└── README.md              # This documentation
+```
+
+## API Reference
+
+### GET log_reader.php
+
+**Parameters:**
+- `lastSize` (optional): Last known file size for incremental reading
+- `maxLines` (optional): Maximum number of lines to return (default: 1000)
+
+**Response:**
+```json
+{
+  "success": true,
+  "filename": "ACTSentinel20250131.log",
+  "size": 1024768,
+  "hasNewData": true,
+  "newLines": ["line1", "line2", "..."],
+  "timestamp": "2025-01-31 14:30:45",
+  "totalLines": 150,
+  "selectedPath": "/run/user/1000/gvfs/smb-share:server=10.12.100.19,share=t$/ACT/Logs/ACTSentinel",
+  "fileStats": {
+    "size": 1024768,
+    "modified": "2025-01-31 14:30:40",
+    "readable": true,
+    "fullPath": "/full/path/to/ACTSentinel20250131.log"
+  }
+}
+```
+
+## Testing Real-time Updates
+
+### Using the Simulation Script
+
+To test the real-time functionality, you can use the included simulation script:
+
+```bash
+php simulate_logs.php
+```
+
+This script will continuously add new log entries to today's log file, allowing you to see the real-time updates in action.
+
+### Manual Testing
+
+You can also manually append to the log file:
+```bash
+echo "$(date): Test log entry" >> "/path/to/ACTSentinel$(date +%Y%m%d).log"
+```
 ├── log_reader.php      # Backend PHP script for reading logs
 ├── style.css          # CSS styling and highlighting
 ├── script.js          # JavaScript for real-time updates
@@ -108,8 +290,35 @@ This script will continuously add new log entries to today's log file, allowing 
 
 ## Deployment
 
+### Windows Server Setup
+
+1. **Configure SMB share access**:
+   The application is configured to read from the UNC path:
+   ```
+   \\10.12.100.19\t$\ACT\Logs\ACTSentinel
+   ```
+
+2. **Alternative: Map network drive**:
+   If you prefer to use a mapped drive:
+   ```cmd
+   net use T: \\10.12.100.19\t$ /persistent:yes
+   ```
+   Then update `log_reader.php` to use: `T:\ACT\Logs\ACTSentinel`
+
+3. **Ensure web server permissions**:
+   - Make sure the web server process (IIS_IUSRS or similar) has access to the SMB share
+   - Test access using the included `test_smb.php` script
+
+4. **Start the application**:
+   ```cmd
+   # Development server
+   php -S 0.0.0.0:8000
+   
+   # Or configure IIS/Apache for production
+   ```
+
 ### Development Environment (Windows)
-For development, the application falls back to the local `logs` directory when the network share is not accessible.
+For development, you can test with local log files by updating the path in `log_reader.php`.
 
 ### Production Environment (Linux Server)
 1. **Clone the repository** on your Linux server:
@@ -187,37 +396,50 @@ To customize highlight colors, modify the CSS classes `.highlight-1` through `.h
 
 ## Troubleshooting
 
-## Troubleshooting
+### HTTP 500 Errors
+
+If you're getting HTTP 500 errors when accessing `log_reader.php`:
+
+1. **Test SMB access:**
+   ```
+   http://localhost:8000/test_smb.php
+   ```
+
+2. **Check the path configuration:**
+   - For Windows with UNC path: `\\\\10.12.100.19\\t$\\ACT\\Logs\\ACTSentinel`
+   - For Windows with mapped drive: `T:\\ACT\\Logs\\ACTSentinel`
 
 ### Network Share Access Issues (Windows)
 
-If you're getting "No log files found" errors when trying to access a network share:
+If you're getting "No log files found" errors:
 
-1. **Run the network test script:**
+1. **Map the network drive:**
+   ```cmd
+   net use T: \\10.12.100.19\t$ /user:DOMAIN\username /persistent:yes
    ```
-   http://localhost:8000/network_test.php
+
+2. **Test web server permissions:**
+   - Ensure IIS_IUSRS (or equivalent) has access to the SMB share
+   - Try running the web server as a user with network access
+
+3. **Alternative: Use local copy:**
+   Set up a scheduled task to copy log files to a local directory
+
+### Network Share Access Issues (Linux)
+
+1. **Mount the SMB share:**
+   ```bash
+   sudo mkdir -p /mnt/act_logs
+   sudo mount -t cifs //10.12.100.19/t$ /mnt/act_logs -o username=your_username
    ```
 
-2. **Map the network drive (Windows):**
-   - Run `setup_network_drive.bat` as Administrator, or
-   - Manually map the drive:
-     ```cmd
-     net use Z: \\10.12.100.19\t$ /user:DOMAIN\username
-     ```
-
-3. **Update the log directory path:**
-   After mapping the drive, update `log_reader.php`:
+2. **Update the path in log_reader.php:**
    ```php
-   $logDirectory = 'Z:\\ACT\\Logs\\ACTSentinel';
-   ```
-
-4. **Alternative: Use UNC path directly:**
-   ```php
-   $logDirectory = '\\\\10.12.100.19\\t$\\ACT\\Logs\\ACTSentinel';
+   $logDirectory = '/mnt/act_logs/ACT/Logs/ACTSentinel';
    ```
 
 ### No log file found
-- Ensure the log file exists with the correct naming pattern
+- Ensure the log file exists with the correct naming pattern: `ACTSentinelYYYYMMDD.log`
 - Check file permissions (PHP needs read access)
 - Verify the date format in the filename
 
