@@ -1,51 +1,61 @@
-# Real-time Log File Monitor
+# ACT Sentinel Log Reader - Final Version
 
 ## Project Overview
-A PHP web application that monitors ACTSentinel log files in real-time from a Windows SMB share, providing filtering and highlighting capabilities. Optimized for Linux servers with robust SMB connectivity.
+PHP web application for monitoring ACTSentinel log files in real-time from Windows SMB shares. Designed for easy integration with existing Apache servers.
 
 **Repository**: https://github.com/miltonarmando/logslive.git
 
-## Features
-- Real-time log file monitoring (simulates `tail -f`)
-- Text filtering (case-insensitive)
-- Keyword highlighting with distinct colors
-- Automatic detection of most recent log file based on current date
-- Lightweight design for modern browsers
-- Comprehensive SMB diagnostics and error handling
-- Adaptive timeouts for slow network connections
+## Final Structure
+The project now contains two complete implementations:
 
-## File Structure
-- `index.php` - Main web interface
-- `log_reader.php` - Backend PHP script for reading log files (Linux-optimized)
-- `style.css` - Styling and highlighting CSS
-- `script.js` - JavaScript for real-time updates and UI interactions
-- `test_smb_access.php` - Comprehensive SMB connectivity diagnostic tool
-- `setup_linux_server.sh` - Linux server setup and configuration script
-- `README.md` - Complete installation and troubleshooting guide
-- `ACTSentinelYYYYMMDD.log` - Log files (format: ACTSentinel20250801.log)
+### 1. PHP Version (Main) - Apache Integration
+- **`act_log_monitor.php`** - Modern PHP interface with real-time monitoring
+- **`log_reader_api.php`** - JSON API endpoint for AJAX requests
+- **`test_smb.php`** - SMB connectivity diagnostic tool
+- **`test_smb_access.php`** - Additional SMB testing utility
+- **`README.md`** - Complete PHP documentation and setup guide
 
-## Log File Configuration
-- **Filename Pattern**: `ACTSentinelYYYYMMDD.log`
+### 2. Python Version (Alternative) - Standalone Server
+- **`python/`** - Complete async Python implementation with WebSocket support
+- Advanced features: non-blocking I/O, WebSocket real-time updates, comprehensive diagnostics
+
+## Current Configuration
 - **SMB Server**: `10.12.100.19`
-- **Share Path**: `\\10.12.100.19\t$\ACT\Logs\ACTSentinel`
-- **Primary Linux Mount**: `/run/user/1000/gvfs/smb-share:server=10.12.100.19,share=t$/ACT/Logs/ACTSentinel`
-- **Alternative Mounts**: Multiple fallback paths supported for different Linux configurations
-- **Access Requirements**: SMB share must be mounted and accessible to PHP process
-- **No Fallback**: Only SMB share is used - no local fallback directories
+- **Share Path**: `t$/ACT/Logs/ACTSentinel`
+- **Log Pattern**: `ACTSentinelYYYYMMDD.log`
+- **Target Environment**: Apache + PHP 7.4+ (primary), Python 3.8+ (alternative)
 
-## Technical Implementation
-- **Backend**: PHP 7+ with enhanced SMB error handling and retry logic
-- **Frontend**: JavaScript with adaptive polling and comprehensive error feedback
-- **SMB Access**: GVFS and traditional CIFS mount support
-- **Real-time Updates**: Intelligent polling with timeout management for slow networks
-- **Filtering**: Client-side filtering with persistent state
-- **Highlighting**: Dynamic keyword highlighting that persists across updates
-- **Diagnostics**: Built-in SMB connectivity testing and troubleshooting tools
-- **Performance**: Optimized for large log files and slow SMB connections
+## PHP Version Features
+- **Apache Integration**: Drop-in replacement for existing servers
+- **Modern UI**: Responsive design with dark theme
+- **Real-time Updates**: AJAX polling with adaptive intervals
+- **SMB Detection**: Automatic path detection for Windows/Linux
+- **Error Handling**: Robust timeout and retry logic
+- **Diagnostics**: Built-in SMB connectivity testing
+- **Performance**: Incremental reading, minimal server load
 
-## Linux Setup Requirements
-- PHP 7.0+ with CLI support
-- GVFS backends for SMB mounting
-- CIFS utilities (optional, for traditional mounting)
-- Network access to 10.12.100.19:445 (SMB port)
-- Proper SMB share mounting (GVFS or CIFS)
+## Deployment Options
+1. **Simple Drop-in**: Copy `act_log_monitor.php` + `log_reader_api.php` to Apache
+2. **Directory Install**: Create dedicated folder with all PHP files
+3. **Virtual Host**: Full Apache virtual host configuration
+4. **Python Alternative**: Use async Python version for advanced features
+
+## Key Improvements Over Original
+- ✅ Modern responsive UI with dark theme
+- ✅ Robust SMB error handling and timeouts
+- ✅ Multiple SMB path detection and fallbacks
+- ✅ Comprehensive diagnostic tools
+- ✅ JSON API architecture
+- ✅ Easy Apache integration
+- ✅ Cross-platform compatibility (Windows/Linux)
+- ✅ Performance optimizations for large files
+- ✅ Keyboard shortcuts and UX improvements
+
+## Production Ready
+The project is now production-ready with:
+- Comprehensive error handling
+- Security considerations documented
+- Performance optimizations
+- Complete setup documentation
+- Diagnostic and troubleshooting tools
+- Two deployment options (PHP/Python)
