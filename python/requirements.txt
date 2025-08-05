@@ -1,0 +1,11 @@
+# ACT Sentinel Log Reader - Python Requirements
+
+# Web framework
+aiohttp==3.9.1
+aiohttp-cors==0.7.0
+
+# Async file operations
+aiofiles==23.2.0
+
+# Additional utilities
+python-multipart==0.0.6
